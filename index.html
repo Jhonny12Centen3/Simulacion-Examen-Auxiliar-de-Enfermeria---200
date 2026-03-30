@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>SIMULADOR EXTREMO - 200 PREGUNTAS ÚNICAS</title>
+    <style>
+        :root { --blue: #0056b3; --bg: #f8f9fa; --success: #28a745; --error: #dc3545; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 10px; }
+        .container { max-width: 850px; margin: 20px auto; background: white; border-radius: 15px; box-shadow: 0 5px 25px rgba(0,0,0,0.1); padding: 30px; }
+        .header { text-align: center; border-bottom: 3px solid var(--blue); margin-bottom: 20px; }
+        .stats { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 15px; }
+        .progress-bar { height: 12px; background: #eee; border-radius: 6px; margin-bottom: 25px; overflow: hidden; }
+        #progress-fill { height: 100%; background: var(--blue); width: 0%; transition: 0.3s; }
+        .question { font-size: 1.3rem; font-weight: 600; color: #333; margin-bottom: 20px; min-height: 60px; }
+        .options { display: grid; gap: 12px; }
+        .opt-btn { background: #fff; border: 2px solid #ddd; padding: 16px; border-radius: 10px; cursor: pointer; text-align: left; font-size: 1.05rem; transition: 0.2s; }
+        .opt-btn:hover { border-color: var(--blue); background: #f0f7ff; }
+        .correct { background: #d4edda !important; border-color: var(--success) !important; }
+        .wrong { background: #f8d7da !important; border-color: var(--error) !important; }
+        .feedback { display: none; margin-top: 20px; padding: 20px; background: #fff3cd; border-left: 6px solid #ffc107; border-radius: 5px; line-height: 1.5; }
+        #next-btn { display: none; width: 100%; margin-top: 20px; padding: 18px; background: var(--blue); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; font-size: 1.1rem; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>Entrenamiento de Auxiliar de Enfermería</h1>
+        <p>Banco Completo: 200 Preguntas de Estudio Intensivo</p>
+    </div>
+    <div class="stats">
+        <span>Pregunta: <span id="q-idx">1</span> / 200</span>
+        <span>Aciertos: <span id="q-score">0</span></span>
+    </div>
+    <div class="progress-bar"><div id="progress-fill"></div></div>
+
+    <div id="quiz-content">
+        <div id="q-text" class="question">Cargando...</div>
+        <div id="q-options" class="options"></div>
+        <div id="q-feedback" class="feedback"></div>
+        <button id="next-btn" onclick="handleNext()">Siguiente Pregunta →</button>
+    </div>
+</div>
+
+<script>
+// BANCO DE DATOS: 200 PREGUNTAS ÚNICAS
+const masterDB = [
+    // 1-10: Bioseguridad y Normas
+    {q: "¿Qué es la bioseguridad?", a: "Normas para contener agentes biológicos peligrosos.", o: ["Curar enfermedades infecciosas", "Normas para contener agentes biológicos peligrosos.", "Limpieza de áreas administrativas", "Atención al cliente"], r: "Busca evitar la exposición a virus, bacterias y toxinas."},
+    {q: "¿Cuál es el objetivo principal de la bioseguridad?", a: "Proteger al personal, comunidad y medio ambiente.", o: ["Aumentar la rapidez del servicio", "Proteger al personal, comunidad y medio ambiente.", "Reducir costos de hospitalización", "Solo proteger al médico"], r: "El enfoque es integral: trabajador, sociedad y entorno."},
+    {q: "¿Qué agente biológico se menciona como proteína infecciosa?", a: "Priones", o: ["Hongos", "Virus", "Bacterias", "Priones"], r: "Los priones son proteínas mal plegadas que causan enfermedades."},
+    {q: "Norma clave con los objetos punzocortantes:", a: "Desechar inmediatamente en contenedores rígidos.", o: ["Lavar con alcohol", "Desechar inmediatamente en contenedores rígidos.", "Recapuchar la aguja", "Guardarlos para el final del turno"], r: "El descarte debe ser instantáneo tras su uso."},
+    {q: "¿Por qué está prohibido recapuchar agujas?", a: "Es la causa principal de accidentes biológicos.", o: ["Se gasta más plástico", "Se pierde tiempo", "Es la causa principal de accidentes biológicos.", "La aguja se dobla"], r: "Recapuchar aumenta drásticamente el riesgo de pinchazos accidentales."},
+    {q: "Característica de los contenedores para agujas:", a: "Rígidos y resistentes a la punción.", o: ["Bolsas rojas plásticas", "Cajas de cartón común", "Rígidos y resistentes a la punción.", "Envases de vidrio"], r: "Deben evitar que la aguja atraviese el material del envase."},
+    {q: "¿Cómo se deben manipular los bisturíes?", a: "Con extremo cuidado y técnica estéril.", o: ["Rápidamente", "Con las manos desnudas", "Con extremo cuidado y técnica estéril.", "Solo por el cirujano"], r: "La precaución extrema evita cortes accidentales."},
+    {q: "¿A qué tiene derecho el paciente respecto a su diagnóstico?", a: "A la confidencialidad.", o: ["A que sea público", "A la confidencialidad.", "A no saberlo nunca", "A que lo decida el vecino"], r: "La privacidad de la información médica es un derecho legal."},
+    {q: "¿Qué significa el Consentimiento Informado?", a: "Aceptar o rechazar un procedimiento tras conocer riesgos.", o: ["Pagar la cuenta", "Aceptar o rechazar un procedimiento tras conocer riesgos.", "Solo firmar sin leer", "Irse del hospital"], r: "El paciente debe entender qué se le hará antes de decidir."},
+    {q: "Es un derecho del personal de salud:", a: "Contar con un entorno de trabajo seguro.", o: ["No tener supervisión", "Contar con un entorno de trabajo seguro.", "Elegir a sus pacientes", "No usar uniforme"], r: "El personal merece protección contra riesgos laborales."},
+
+    // 11-20: Anatomía Básica
+    {q: "¿Qué nivel sigue al celular en la jerarquía corporal?", a: "Nivel tisular (tejidos).", o: ["Nivel orgánico", "Nivel tisular (tejidos).", "Nivel químico", "Nivel de sistema"], r: "Un conjunto de células similares forma un tejido."},
+    {q: "La unión de varios órganos con funciones comunes forma:", a: "Un sistema.", o: ["Un tejido", "Una célula", "Un sistema.", "Una molécula"], r: "Ejemplo: Sistema Digestivo o Circulatorio."},
+    {q: "¿Cuál es la unidad fundamental del sistema nervioso?", a: "La neurona.", o: ["La nefrona", "La neurona.", "El alvéolo", "El miocito"], r: "Las neuronas transmiten los impulsos eléctricos."},
+    {q: "Partes del Sistema Nervioso Central (SNC):", a: "Encéfalo y médula espinal.", o: ["Cerebro y nervios", "Encéfalo y médula espinal.", "Corazón y pulmón", "Huesos y músculos"], r: "Es el eje central de procesamiento del cuerpo."},
+    {q: "¿Qué lóbulo cerebral se encarga de la visión?", a: "Lóbulo Occipital.", o: ["Lóbulo Frontal", "Lóbulo Temporal", "Lóbulo Occipital.", "Lóbulo Parietal"], r: "Se ubica en la parte posterior del cerebro."},
+    {q: "Función del Lóbulo Frontal:", a: "Razonamiento, personalidad y motricidad.", o: ["Audición", "Razonamiento, personalidad y motricidad.", "Equilibrio", "Visión"], r: "Controla las funciones ejecutivas y el movimiento voluntario."},
+    {q: "El área de Wernicke para entender el lenguaje está en:", a: "Lóbulo Temporal.", o: ["Lóbulo Parietal", "Lóbulo Frontal", "Lóbulo Temporal.", "Cerebelo"], r: "El temporal procesa sonidos e interpretación del lenguaje."},
+    {q: "Función principal del Cerebelo:", a: "Coordinación y equilibrio.", o: ["Pensamiento lógico", "Coordinación y equilibrio.", "Latido cardíaco", "Digestión"], r: "Mantiene la postura y precisión de movimientos."},
+    {q: "¿Qué parte del tronco encefálico controla la respiración?", a: "Bulbo raquídeo.", o: ["Mesencéfalo", "Cerebelo", "Bulbo raquídeo.", "Tálamo"], r: "Es el centro de control vital involuntario."},
+    {q: "¿Qué hace el Sistema Nervioso Simpático?", a: "Prepara para la lucha o huida.", o: ["Promueve la relajación", "Prepara para la lucha o huida.", "Ayuda a dormir", "Baja el pulso"], r: "Aumenta el ritmo cardíaco ante el estrés."},
+
+    // 21-30: Sistema Circulatorio
+    {q: "¿Dónde ocurre el intercambio gaseoso (Hematosis)?", a: "En los pulmones.", o: ["En el estómago", "En el corazón", "En los pulmones.", "En el hígado"], r: "La sangre se oxigena y libera CO2 en los pulmones."},
+    {q: "¿Qué cámara recibe sangre desoxigenada del cuerpo?", a: "Aurícula derecha.", o: ["Ventrículo izquierdo", "Aurícula derecha.", "Aurícula izquierda", "Ventrículo derecho"], r: "Llega a través de las venas cavas."},
+    {q: "Válvula que separa aurícula derecha de ventrículo derecho:", a: "Válvula Tricúspide.", o: ["Válvula Mitral", "Válvula Tricúspide.", "Válvula Aórtica", "Válvula Pulmonar"], r: "Evita el retroceso de la sangre en el lado derecho."},
+    {q: "¿Qué vaso lleva sangre del ventrículo derecho a los pulmones?", a: "Arteria Pulmonar.", o: ["Vena Cava", "Arteria Aorta", "Arteria Pulmonar.", "Vena Pulmonar"], r: "Es la única arteria que lleva sangre pobre en oxígeno."},
+    {q: "¿Por dónde regresa la sangre oxigenada al corazón?", a: "Venas Pulmonares.", o: ["Arteria Pulmonar", "Venas Pulmonares.", "Vena Cava", "Aorta"], r: "Llegan a la aurícula izquierda."},
+    {q: "¿Qué ventrículo bombea sangre a todo el cuerpo?", a: "Ventrículo izquierdo.", o: ["Ventrículo derecho", "Ventrículo izquierdo.", "Aurícula izquierda", "Aurícula derecha"], r: "Tiene paredes más gruesas para soportar la presión."},
+    {q: "Válvula que permite el paso a la Arteria Aorta:", a: "Válvula Aórtica.", o: ["Válvula Tricúspide", "Válvula Mitral", "Válvula Aórtica.", "Válvula Pulmonar"], r: "Comunica el ventrículo izquierdo con la circulación sistémica."},
+    {q: "Función de las Arterias Coronarias:", a: "Nutrir y oxigenar el músculo cardíaco.", o: ["Llevar sangre al cerebro", "Nutrir y oxigenar el músculo cardíaco.", "Limpiar los riñones", "Regular la presión"], r: "Son las arterias propias del corazón."},
+    {q: "¿Qué es la Sístole?", a: "Fase de contracción del corazón.", o: ["Fase de llenado", "Fase de contracción del corazón.", "Fase de reposo", "Baja de presión"], r: "Es el momento en que se expulsa la sangre."},
+    {q: "¿Qué es la Diástole?", a: "Fase de relajación y llenado del corazón.", o: ["Fase de bombeo", "Fase de relajación y llenado del corazón.", "Cierre de válvulas", "Muerte celular"], r: "El corazón se llena de sangre para el siguiente latido."},
+
+    // 31-40: Sistema Digestivo
+    {q: "¿Dónde inicia la digestión química?", a: "En la boca (saliva).", o: ["En el estómago", "En la boca (saliva).", "En el esófago", "En el duodeno"], r: "La amilasa salival empieza a degradar carbohidratos."},
+    {q: "Función del Esófago:", a: "Transportar el bolo alimenticio al estómago.", o: ["Absorber agua", "Secretar bilis", "Transportar el bolo alimenticio al estómago.", "Filtrar aire"], r: "Usa movimientos peristálticos."},
+    {q: "¿Qué órgano produce el ácido clorhídrico?", a: "Estómago.", o: ["Páncreas", "Hígado", "Estómago.", "Bazo"], r: "El ácido ayuda a descomponer los alimentos."},
+    {q: "¿Cuál es la primera parte del intestino delgado?", a: "Duodeno.", o: ["Yeyuno", "Íleon", "Duodeno.", "Ciego"], r: "Es donde se mezcla el quimo con bilis y jugos pancreáticos."},
+    {q: "¿Dónde se absorben la mayoría de nutrientes?", a: "Intestino Delgado.", o: ["Estómago", "Intestino Delgado.", "Intestino Grueso", "Hígado"], r: "Gracias a las vellosidades intestinales."},
+    {q: "Función del Hígado en la digestión:", a: "Producir la bilis.", o: ["Almacenar insulina", "Producir la bilis.", "Absorber agua", "Producir moco"], r: "La bilis ayuda a emulsionar las grasas."},
+    {q: "¿Qué órgano almacena la bilis?", a: "Vesícula Biliar.", o: ["Hígado", "Páncreas", "Vesícula Biliar.", "Duodeno"], r: "La libera cuando comemos grasas."},
+    {q: "Función del Intestino Grueso:", a: "Absorber agua y formar las heces.", o: ["Absorber proteínas", "Absorber agua y formar las heces.", "Producir jugos gástricos", "Digerir carne"], r: "Compacta los desechos para su eliminación."},
+    {q: "¿Qué válvula une el intestino delgado con el grueso?", a: "Válvula Ileocecal.", o: ["Válvula Mitral", "Válvula Pilórica", "Válvula Ileocecal.", "Cardias"], r: "Impide el retroceso del contenido del colon."},
+    {q: "Parte final del sistema digestivo:", a: "Ano.", o: ["Recto", "Ano.", "Apéndice", "Colon"], r: "Es el esfínter de salida de las heces."},
+
+    // 41-50: Respiratorio y Excretor
+    {q: "Estructura que impide el paso de comida a los pulmones:", a: "Epiglotis.", o: ["Faringe", "Epiglotis.", "Úvula", "Laringe"], r: "Es un cartílago que actúa como tapa."},
+    {q: "¿Dónde se encuentran las cuerdas vocales?", a: "En la Laringe.", o: ["En la Faringe", "En la Laringe.", "En la Tráquea", "En la Nariz"], r: "Es el órgano de la fonación."},
+    {q: "¿Cuál es el músculo principal de la respiración?", a: "Diafragma.", o: ["Intercostales", "Diafragma.", "Abdominales", "Pectorales"], r: "Se contrae para permitir la entrada de aire."},
+    {q: "¿Qué ocurre en los alvéolos?", a: "El intercambio gaseoso.", o: ["La producción de moco", "El intercambio gaseoso.", "El calentamiento del aire", "La tos"], r: "Es la unidad funcional del pulmón."},
+    {q: "Función de los Riñones:", a: "Filtrar la sangre y formar orina.", o: ["Bombear sangre", "Filtrar la sangre y formar orina.", "Producir bilis", "Digerir proteínas"], r: "Eliminan toxinas y regulan líquidos."},
+    {q: "¿Cómo se llama la unidad funcional del riñón?", a: "Nefrona.", o: ["Neurona", "Nefrona.", "Alvéolo", "Célula renal"], r: "Hay millones en cada riñón."},
+    {q: "¿Qué conductos llevan la orina a la vejiga?", a: "Uréteres.", o: ["Uretra", "Uréteres.", "Conductos deferentes", "Venas renales"], r: "Son dos tubos musculares."},
+    {q: "Función de la Vejiga:", a: "Almacenar la orina temporalmente.", o: ["Filtrar sangre", "Almacenar la orina temporalmente.", "Eliminar sales", "Producir hormonas"], r: "Es un órgano hueco y elástico."},
+    {q: "Conducto por donde sale la orina al exterior:", a: "Uretra.", o: ["Uréter", "Uretra.", "Ano", "Vagina"], r: "En hombres es más larga que en mujeres."},
+    {q: "¿Qué elimina el sistema respiratorio como desecho?", a: "Dióxido de Carbono (CO2).", o: ["Oxígeno", "Dióxido de Carbono (CO2).", "Nitrógeno", "Vapor de agua solo"], r: "Es el residuo del metabolismo celular."},
+
+    // 51-60: Constantes Vitales - Adultos
+    {q: "Frecuencia Cardíaca (FC) normal en adulto:", a: "72 – 80 lpm.", o: ["60 – 100 lpm", "72 – 80 lpm.", "100 – 120 lpm", "50 – 60 lpm"], r: "Rango promedio en reposo."},
+    {q: "Presión Arterial (TA) normal en adulto:", a: "120/80 mmHg.", o: ["140/90 mmHg", "120/80 mmHg.", "100/60 mmHg", "110/70 mmHg"], r: "120 Sistólica / 80 Diastólica."},
+    {q: "Frecuencia Respiratoria (FR) normal en adulto:", a: "16 – 20 rpm.", o: ["12 – 16 rpm", "16 – 20 rpm.", "20 – 30 rpm", "10 – 12 rpm"], r: "Ciclos de inspiración y espiración por minuto."},
+    {q: "Temperatura corporal normal (rango medio):", a: "36.5 °C – 37.5 °C.", o: ["35 °C – 36 °C", "36.5 °C – 37.5 °C.", "38 °C", "34 °C"], r: "La normotermia."},
+    {q: "¿A qué se considera Fiebre?", a: "Temperatura mayor a 38 °C.", o: ["37.2 °C", "37.5 °C", "Temperatura mayor a 38 °C.", "36.9 °C"], r: "Por debajo de 38 se considera febrícula."},
+    {q: "¿Qué es la Taquicardia?", a: "Pulso rápido (más de 100 lpm).", o: ["Pulso lento", "Pulso rápido (más de 100 lpm).", "Presión alta", "Respiración rápida"], r: "Aumento de la frecuencia cardíaca."},
+    {q: "¿Qué es la Bradicardia?", a: "Pulso lento (menos de 60 lpm).", o: ["Pulso rápido", "Pulso lento (menos de 60 lpm).", "Fiebre", "Baja azúcar"], r: "Disminución de la frecuencia cardíaca."},
+    {q: "¿Qué es la Taquipnea?", a: "Respiración rápida.", o: ["Respiración lenta", "Respiración rápida.", "Falta de aire", "Dolor al respirar"], r: "Aumento de la frecuencia respiratoria."},
+    {q: "¿Qué es la Apnea?", a: "Cese temporal de la respiración.", o: ["Respiración rápida", "Respiración difícil", "Cese temporal de la respiración.", "Tos"], r: "Ausencia de movimientos respiratorios."},
+    {q: "Definición de Hipertensión:", a: "Presión arterial alta constante.", o: ["Presión baja", "Presión arterial alta constante.", "Pulso rápido", "Azúcar alta"], r: "Valores por encima de lo normal sostenidos."},
+
+    // 61-70: Constantes Vitales - Edades
+    {q: "Pulso normal en un recién nacido:", a: "130 – 140 lpm.", o: ["80 – 100 lpm", "130 – 140 lpm.", "60 – 70 lpm", "110 – 120 lpm"], r: "Los bebés tienen el pulso más rápido."},
+    {q: "Frecuencia respiratoria en recién nacido:", a: "30 – 40 rpm.", o: ["16 – 20 rpm", "30 – 40 rpm.", "20 – 25 rpm", "12 – 14 rpm"], r: "Respiran más veces por minuto que un adulto."},
+    {q: "Presión arterial normal en recién nacido:", a: "70/50 mmHg.", o: ["120/80 mmHg", "70/50 mmHg.", "90/60 mmHg", "100/70 mmHg"], r: "Su presión es mucho menor."},
+    {q: "Pulso normal en la vejez:", a: "60 – 70 lpm.", o: ["80 – 90 lpm", "60 – 70 lpm.", "100 lpm", "120 lpm"], r: "Tiende a ser más bajo en adultos mayores."},
+    {q: "Temperatura normal en la vejez:", a: "36 °C.", o: ["37 °C", "36 °C.", "36.8 °C", "35.5 °C"], r: "Suelen tener una temperatura basal menor."},
+    {q: "Glucosa normal en ayunas (adulto):", a: "70 a 100 mg/dl.", o: ["100 a 140 mg/dl", "70 a 100 mg/dl.", "50 a 70 mg/dl", "Mayor a 150 mg/dl"], r: "Valor estándar tras 8 horas de ayuno."},
+    {q: "Glucosa 'postprandial' (2h después de comer):", a: "Menor a 140 mg/dl.", o: ["Menor a 100 mg/dl", "Menor a 140 mg/dl.", "Exactamente 70 mg/dl", "180 mg/dl"], r: "Es el límite normal después de ingerir alimentos."},
+    {q: "¿Qué nivel se considera Hipoglucemia?", a: "Menos de 70 mg/dl.", o: ["Menos de 100 mg/dl", "Menos de 70 mg/dl.", "80 mg/dl", "110 mg/dl"], r: "Bajo azúcar en sangre."},
+    {q: "Síntoma común de Hipoglucemia:", a: "Sudoración fría y mareo.", o: ["Fiebre", "Sed excesiva", "Sudoración fría y mareo.", "Piel seca"], r: "El cuerpo reacciona a la falta de energía."},
+    {q: "Fórmula de TA sistólica en niños (2-10 años):", a: "Edad x 2 + 80.", o: ["Edad x 3 + 70", "Edad x 2 + 80.", "Peso + 100", "Edad + 90"], r: "Cálculo aproximado para pediatría."},
+
+    // 71-80: Vacunas - Esquema BCG y Hepatitis
+    {q: "¿Qué vacuna se pone al recién nacido contra Tuberculosis?", a: "BCG.", o: ["Pentavalente", "BCG.", "Polio", "Rotavirus"], r: "Bacilo de Calmette-Guérin."},
+    {q: "Vía de administración de la vacuna BCG:", a: "Intradérmica.", o: ["Oral", "Intramuscular", "Intradérmica.", "Subcutánea"], r: "Se aplica en el brazo derecho generalmente."},
+    {q: "Vacuna que se pone al nacer contra Hepatitis B:", a: "Hepatitis B (HB).", o: ["SRP", "Hepatitis B (HB).", "Neumococo", "Influenza"], r: "Debe aplicarse en las primeras 24 horas."},
+    {q: "Vía de la vacuna Hepatitis B en recién nacidos:", a: "Intramuscular.", o: ["Oral", "Intramuscular.", "Intradérmica", "Subcutánea"], r: "En el músculo del muslo (vasto lateral)."},
+    {q: "¿Cuántas dosis tiene la vacuna Pentavalente?", a: "3 dosis (2, 4 y 6 meses).", o: ["1 dosis", "2 dosis", "3 dosis (2, 4 y 6 meses).", "5 dosis"], r: "Cubre cinco enfermedades en tres aplicaciones."},
+    {q: "¿Qué previene la Pentavalente?", a: "Difteria, Tétanos, Tosferina, Hepatitis B, Hib.", o: ["Sarampión y Paperas", "Difteria, Tétanos, Tosferina, Hepatitis B, Hib.", "Polio y Rotavirus", "Gripe"], r: "Hib es la bacteria Haemophilus influenzae tipo b."},
+    {q: "Vía de administración de la Pentavalente:", a: "Intramuscular.", o: ["Oral", "Subcutánea", "Intramuscular.", "Intradérmica"], r: "Se aplica en el muslo en lactantes."},
+    {q: "¿Qué previene la vacuna OPV/fIPV?", a: "Poliomielitis.", o: ["Neumonía", "Poliomielitis.", "Diarrea", "Sarampión"], r: "Previene la parálisis infantil."},
+    {q: "Vía de la vacuna contra Rotavirus:", a: "Oral.", o: ["Intramuscular", "Oral.", "Subcutánea", "Intradérmica"], r: "Son gotas directamente en la boca."},
+    {q: "¿A qué edad se pone la vacuna contra Rotavirus?", a: "2 y 4 meses.", o: ["Al nacer", "12 meses", "2 y 4 meses.", "6 meses"], r: "Previene diarreas graves por este virus."},
+
+    // 81-90: Vacunas - SRP y Otras
+    {q: "Vacuna SRP protege contra:", a: "Sarampión, Rubéola y Paperas.", o: ["Sida", "Sarampión, Rubéola y Paperas.", "Tétanos", "Gripe"], r: "Triple viral."},
+    {q: "¿A qué edad se aplica la primera dosis de SRP?", a: "12 meses (1 año).", o: ["6 meses", "2 meses", "12 meses (1 año).", "Al nacer"], r: "Al cumplir el primer año."},
+    {q: "Vía de la vacuna SRP:", a: "Subcutánea.", o: ["Intradérmica", "Intramuscular", "Subcutánea.", "Oral"], r: "Tejido graso debajo de la piel."},
+    {q: "¿Qué enfermedades previene la vacuna Neumococo?", a: "Neumonía y meningitis bacteriana.", o: ["Gripe común", "Neumonía y meningitis bacteriana.", "Hepatitis", "Diarrea"], r: "Protege contra el Streptococcus pneumoniae."},
+    {q: "Vía de la vacuna Neumococo:", a: "Intramuscular.", o: ["Oral", "Subcutánea", "Intramuscular.", "Intradérmica"], r: "Músculo vasto lateral o deltoides según edad."},
+    {q: "¿Cuándo se aplica la vacuna contra Fiebre Amarilla?", a: "A los 12 meses.", o: ["Al nacer", "A los 12 meses.", "Cada 5 años", "A los 2 meses"], r: "Dosis única generalmente al año."},
+    {q: "Vía de la vacuna Fiebre Amarilla:", a: "Subcutánea.", o: ["Intradérmica", "Oral", "Subcutánea.", "Intramuscular"], r: "Igual que la SRP."},
+    {q: "Vacuna contra Influenza se aplica desde:", a: "Los 6 meses de edad.", o: ["Al nacer", "Los 6 meses de edad.", "El primer año", "La adultez solamente"], r: "Suele ser dosis estacional."},
+    {q: "Vía de la vacuna Influenza:", a: "Intramuscular.", o: ["Oral", "Intramuscular.", "Subcutánea", "Intradérmica"], r: "En el brazo o muslo."},
+    {q: "¿Para qué sirve la vacuna dT?", a: "Difteria y Tétanos (adultos/embarazadas).", o: ["Diarrea", "Difteria y Tétanos (adultos/embarazadas).", "Tosferina", "Gripe"], r: "Refuerzo para adultos."},
+
+    // 91-100: Administraciones y Ángulos
+    {q: "Ángulo de la vía Intramuscular (IM):", a: "90°.", o: ["45°", "25°", "90°.", "15°"], r: "Perpendicular a la piel."},
+    {q: "Ángulo de la vía Subcutánea (SC):", a: "45°.", o: ["90°", "45°.", "15°", "10°"], r: "Llega al tejido celular subcutáneo."},
+    {q: "Ángulo de la vía Endovenosa (EV):", a: "25°.", o: ["90°", "25°.", "45°", "10°"], r: "Para entrar en la luz de la vena."},
+    {q: "Ángulo de la vía Intradérmica (ID):", a: "10° a 15°.", o: ["45°", "90°", "10° a 15°.", "25°"], r: "Solo entra en la dermis, bajo la epidermis."},
+    {q: "¿Qué vía es más rápida para efectos sistémicos?", a: "Endovenosa.", o: ["Oral", "Intramuscular", "Endovenosa.", "Subcutánea"], r: "Va directo al torrente sanguíneo."},
+    {q: "Volumen máximo en vía Intradérmica:", a: "0,1 a 0,3 ml.", o: ["5 ml", "10 ml", "0,1 a 0,3 ml.", "2 ml"], r: "Es un volumen muy pequeño, forma una pápula."},
+    {q: "Sitio común para IM en adultos:", a: "Glúteo mayor (cuadrante superior externo).", o: ["Abdomen", "Glúteo mayor (cuadrante superior externo).", "Antebrazo", "Espalda"], r: "Evita el nervio ciático."},
+    {q: "Sitio común para IM en lactantes:", a: "Músculo vasto lateral (muslo).", o: ["Deltoides", "Glúteo", "Músculo vasto lateral (muslo).", "Abdomen"], r: "Es el músculo más desarrollado en bebés."},
+    {q: "Lugar para inyección Subcutánea de insulina:", a: "Abdomen (zona periumbilical).", o: ["Glúteo", "Abdomen (zona periumbilical).", "Planta del pie", "Palma de la mano"], r: "Zona de absorción constante."},
+    {q: "¿Qué se busca al aplicar vía Intradérmica?", a: "Pruebas de alergia o vacunas (BCG).", o: ["Hidratación rápida", "Administrar antibióticos fuertes", "Pruebas de alergia o vacunas (BCG).", "Nutrición"], r: "Es para fines diagnósticos o vacunas específicas."},
+
+    // 101-110: Posiciones Anatómicas
+    {q: "Posición 'Boca arriba':", a: "Decúbito Dorsal o Supino.", o: ["Decúbito Prono", "Decúbito Dorsal o Supino.", "Sims", "Fowler"], r: "Para exploración de tórax y abdomen."},
+    {q: "Posición 'Boca abajo':", a: "Decúbito Ventral o Prono.", o: ["Decúbito Supino", "Decúbito Ventral o Prono.", "Litotomía", "Fowler"], r: "Usada en cirugías de columna o mejora de oxigenación."},
+    {q: "Posición para pacientes con disnea (falta de aire):", a: "Fowler (45°).", o: ["Trendelenburg", "Fowler (45°).", "Decúbito Prono", "Genupectoral"], r: "Facilita la expansión pulmonar."},
+    {q: "Posición para colocar enemas:", a: "Sims (Lateral Izquierda).", o: ["Litotomía", "Fowler", "Sims (Lateral Izquierda).", "Supino"], r: "Facilita la entrada al recto por la anatomía del colon."},
+    {q: "Posición para partos o examen ginecológico:", a: "Litotomía o Ginecológica.", o: ["Prono", "Litotomía o Ginecológica.", "Trendelenburg", "Sims"], r: "Piernas elevadas en estribos."},
+    {q: "Posición Trendelenburg:", a: "Pies más altos que la cabeza.", o: ["Cabeza más alta que pies", "Pies más altos que la cabeza.", "Sentado", "De lado"], r: "Para desmayos o cirugías pélvicas."},
+    {q: "Posición Antitrendelenburg:", a: "Cabeza más alta que los pies.", o: ["Pies más altos", "Cabeza más alta que los pies.", "Boca abajo", "Sentado 90°"], r: "Para problemas de reflujo o craneales."},
+    {q: "Posición Genupectoral:", a: "Apoyo en rodillas y pecho.", o: ["Sentado", "Boca arriba", "Apoyo en rodillas y pecho.", "De lado"], r: "Para exámenes rectales específicos."},
+    {q: "¿Qué es la posición Semifowler?", a: "Inclinación de 30°.", o: ["Inclinación de 90°", "Inclinación de 45°", "Inclinación de 30°.", "Boca abajo"], r: "Posición intermedia de descanso."},
+    {q: "Posición para punción lumbar:", a: "Fetal o Decúbito lateral arqueado.", o: ["Boca arriba", "Fetal o Decúbito lateral arqueado.", "Fowler", "Trendelenburg"], r: "Para abrir los espacios entre las vértebras."},
+
+    // 111-120: Triage y Emergencias
+    {q: "¿Qué es el Triage?", a: "Clasificación de pacientes por gravedad.", o: ["Cobro de servicios", "Clasificación de pacientes por gravedad.", "Limpieza de heridas", "Archivo de historias clínicas"], r: "Prioriza la atención según riesgo vital."},
+    {q: "Color Rojo en Triage:", a: "Emergencia (Atención inmediata).", o: ["Urgencia", "Emergencia (Atención inmediata).", "No urgente", "Fallecido"], r: "Riesgo inminente de muerte."},
+    {q: "Color Amarillo en Triage:", a: "Urgencia (Atención en poco tiempo).", o: ["Emergencia", "Urgencia (Atención en poco tiempo).", "No urgente", "Muerte"], r: "Paciente grave pero estable por el momento."},
+    {q: "Color Verde en Triage:", a: "No urgente (Atención demorada).", o: ["Emergencia", "No urgente (Atención demorada).", "Urgencia", "Grave"], r: "Puede esperar sin riesgo vital."},
+    {q: "Color Negro en Triage:", a: "Fallecido o sin posibilidad de sobrevivir.", o: ["Muy urgente", "Fallecido o sin posibilidad de sobrevivir.", "Gripe", "Fractura"], r: "Pacientes sin signos vitales."},
+    {q: "Primer paso ante una hemorragia externa:", a: "Presión directa sobre la herida.", o: ["Torniquete inmediato", "Presión directa sobre la herida.", "Lavar con mucha agua", "Poner una curita"], r: "La compresión detiene la mayoría de los sangrados."},
+    {q: "¿Qué hacer en quemaduras térmicas de primer grado?", a: "Irritar con agua fría (no helada).", o: ["Poner pasta de dientes", "Irritar con agua fría (no helada).", "Reventar ampollas", "Poner aceite"], r: "El agua refresca y detiene el daño térmico."},
+    {q: "¿Qué NO se debe hacer ante una mordedura de serpiente?", a: "Succionar el veneno o hacer cortes.", o: ["Inmovilizar", "Trasladar al hospital", "Succionar el veneno o hacer cortes.", "Mantener la calma"], r: "Esas prácticas aumentan el daño y la infección."},
+    {q: "Tratamiento básico para mordedura de perro:", a: "Lavado con abundante agua y jabón.", o: ["Poner alcohol", "Lavado con abundante agua y jabón.", "Coser la herida rápido", "No hacer nada"], r: "Previene la rabia y otras infecciones."},
+    {q: "¿Qué es una Crisis Epiléptica?", a: "Descarga eléctrica anormal en el cerebro.", o: ["Baja de azúcar", "Descarga eléctrica anormal en el cerebro.", "Ataque al corazón", "Falta de aire"], r: "Provoca movimientos involuntarios o pérdida de conciencia."},
+
+    // 121-130: Esterilización y Quirófano
+    {q: "¿Qué es la esterilización?", a: "Eliminación de toda forma de vida, incluidas esporas.", o: ["Limpieza con jabón", "Desinfección simple", "Eliminación de toda forma de vida, incluidas esporas.", "Barrido de suelos"], r: "Es el nivel más alto de asepsia."},
+    {q: "Diferencia entre desinfección y esterilización:", a: "La esterilización mata las esporas; la desinfección no.", o: ["Son lo mismo", "La esterilización mata las esporas; la desinfección no.", "La desinfección es más fuerte", "Se usan en ropa solamente"], r: "Las esporas son formas muy resistentes de bacterias."},
+    {q: "Función de la Central de Esterilización:", a: "Limpiar, esterilizar y distribuir material médico.", o: ["Operar pacientes", "Cocinar alimentos", "Limpiar, esterilizar y distribuir material médico.", "Vender medicinas"], r: "Garantiza el instrumental seguro para el hospital."},
+    {q: "Método físico de esterilización más usado:", a: "Autoclave (vapor a presión).", o: ["Alcohol al 70%", "Luz solar", "Autoclave (vapor a presión).", "Agua hirviendo"], r: "Es rápido, eficaz y económico."},
+    {q: "Zona 'Blanca' o Restringida del quirófano:", a: "Área de máxima esterilidad (sala de cirugía).", o: ["Pasillos", "Vestidores", "Área de máxima esterilidad (sala de cirugía).", "Recepción"], r: "Donde se realiza la intervención quirúrgica."},
+    {q: "Zona 'Gris' o Semicrítica del quirófano:", a: "Pasillos internos y zona de lavado de manos.", o: ["Sala de espera", "Pasillos internos y zona de lavado de manos.", "Calle", "Cafetería"], r: "Requiere uniforme quirúrgico completo."},
+    {q: "¿Qué es la técnica aséptica?", a: "Procedimientos para evitar contaminación.", o: ["Lavado de ropa", "Procedimientos para evitar contaminación.", "Tratamiento de basura", "Administrar sueros"], r: "Mantiene la esterilidad durante la cirugía."},
+    {q: "Complicación quirúrgica: Hemorragia.", a: "Pérdida excesiva de sangre.", o: ["Infección tardía", "Pérdida excesiva de sangre.", "Fiebre", "Dolor leve"], r: "Riesgo inmediato durante y después de la operación."},
+    {q: "Complicación quirúrgica: Infección de sitio quirúrgico.", a: "Contaminación de la herida operada.", o: ["Alergia al anestésico", "Contaminación de la herida operada.", "Falta de apetito", "Cicatriz pequeña"], r: "Se manifiesta generalmente días después."},
+    {q: "Papel de la enfermera instrumentista:", a: "Pasar el instrumental estéril al cirujano.", o: ["Limpiar el piso", "Anestesiar", "Pasar el instrumental estéril al cirujano.", "Hablar con familiares"], r: "Mantiene la mesa estéril y el orden de los equipos."},
+
+    // 131-140: Suturas y Heridas
+    {q: "¿Para qué sirve una sutura?", a: "Unir bordes de una herida y ayudar a cicatrizar.", o: ["Para que no duela", "Unir bordes de una herida y ayudar a cicatrizar.", "Para infectar", "Solo por estética"], r: "Reduce la tensión y el riesgo de infección."},
+    {q: "¿Qué es una sutura absorbible?", a: "Aquella que el cuerpo degrada por sí solo.", o: ["La que hay que retirar", "Aquella que el cuerpo degrada por sí solo.", "La que es de seda", "La que es de metal"], r: "Se usa en tejidos internos (ej. Vicryl)."},
+    {q: "¿Qué es una sutura NO absorbible?", a: "Aquella que debe ser retirada manualmente.", o: ["La que se disuelve", "Aquella que debe ser retirada manualmente.", "La que no sirve", "La que se pone con pegamento"], r: "Ejemplos: Nylon, Seda."},
+    {q: "Material de sutura natural:", a: "Seda o Catgut.", o: ["Nylon", "Acero", "Seda o Catgut.", "Poliéster"], r: "Provienen de fuentes orgánicas."},
+    {q: "Material de sutura sintético:", a: "Nylon, Vicryl, Prolene.", o: ["Seda", "Nylon, Vicryl, Prolene.", "Algodón", "Lino"], r: "Creados en laboratorio, menos reacción tisular."},
+    {q: "¿Qué es la dehiscencia de sutura?", a: "Apertura espontánea de los bordes suturados.", o: ["Cierre muy rápido", "Apertura espontánea de los bordes suturados.", "Cicatriz bonita", "Infección de orina"], r: "Es una complicación grave tras la cirugía."},
+    {q: "¿Qué es la evisceración?", a: "Salida de órganos a través de la herida abierta.", o: ["Salida de sangre", "Salida de órganos a través de la herida abierta.", "Cierre de piel", "Inflamación"], r: "Urgencia quirúrgica inmediata."},
+    {q: "Sutura simple o discontinua:", a: "Cada punto es independiente.", o: ["Un solo hilo para todo", "Cada punto es independiente.", "Uso de grapas", "Puntos internos"], r: "Si un punto falla, los demás mantienen la unión."},
+    {q: "Sutura continua:", a: "Un solo hilo recorre toda la herida.", o: ["Puntos separados", "Un solo hilo recorre toda la herida.", "Sin nudos", "Uso de cinta"], r: "Es más rápida pero si se rompe, se abre toda."},
+    {q: "¿Qué factor retrasa la cicatrización?", a: "Diabetes e infecciones.", o: ["Buena nutrición", "Diabetes e infecciones.", "Juventud", "Reposo"], r: "La glucosa alta daña la reparación de tejidos."},
+
+    // 141-150: Materno Infantil
+    {q: "¿Cuánto dura un embarazo normal en semanas?", a: "38 a 42 semanas.", o: ["30 semanas", "38 a 42 semanas.", "45 semanas", "35 semanas"], r: "El promedio es 40 semanas."},
+    {q: "¿Qué es la placenta?", a: "Órgano de intercambio entre madre y feto.", o: ["Una hormona", "Órgano de intercambio entre madre y feto.", "El líquido del bebé", "Un hueso"], r: "Aporta nutrientes y oxígeno."},
+    {q: "Función del Líquido Amniótico:", a: "Proteger al feto y mantener temperatura.", o: ["Alimentar", "Proteger al feto y mantener temperatura.", "Producir sangre", "Formar el cerebro"], r: "Actúa como amortiguador de golpes."},
+    {q: "¿Qué ocurre en la Dilatación (Parto)?", a: "El cuello uterino se abre hasta 10 cm.", o: ["Sale el bebé", "Sale la placenta", "El cuello uterino se abre hasta 10 cm.", "Se corta el cordón"], r: "Es la fase más larga del parto."},
+    {q: "¿Qué es el Alumbramiento?", a: "Expulsión de la placenta tras el nacimiento.", o: ["Cuando el bebé nace", "Cuando se rompe la fuente", "Expulsión de la placenta tras el nacimiento.", "El primer llanto"], r: "Ocurre minutos después de que nace el bebé."},
+    {q: "¿Qué es un parto por Cesárea?", a: "Extracción del bebé vía quirúrgica abdominal.", o: ["Parto natural", "Extracción del bebé vía quirúrgica abdominal.", "Parto en agua", "Parto prematuro"], r: "Se realiza cuando el parto vaginal es riesgoso."},
+    {q: "¿Qué es el Puerperio?", a: "Periodo tras el parto (40 días o dieta).", o: ["El embarazo", "Periodo tras el parto (40 días o dieta).", "La lactancia total", "La menopausia"], r: "El cuerpo vuelve a su estado normal."},
+    {q: "Beneficio de la Lactancia Materna:", a: "Aporta anticuerpos y nutrientes perfectos.", o: ["Es más cara", "Aporta anticuerpos y nutrientes perfectos.", "Hace que el bebé duerma 20 horas", "No tiene beneficios"], r: "Es la mejor protección inmunológica."},
+    {q: "¿Qué es el Meconio?", a: "La primera deposición del recién nacido.", o: ["Un tipo de llanto", "La primera deposición del recién nacido.", "El cordón umbilical", "Una vacuna"], r: "Es de color verde oscuro o negro y pegajoso."},
+    {q: "¿Qué es el test de APGAR?", a: "Evaluación del recién nacido al minuto y 5 min.", o: ["Prueba de sangre", "Evaluación del recién nacido al minuto y 5 min.", "Control de peso", "Examen de la vista"], r: "Mide pulso, respiración, tono, reflejos y color."},
+
+    // 151-160: Sondas y Enemas
+    {q: "¿Para qué sirve la Sonda Nasogástrica?", a: "Alimentación o vaciado del estómago.", o: ["Sacar orina", "Alimentación o vaciado del estómago.", "Limpiar pulmones", "Medir presión"], r: "Va de la nariz al estómago."},
+    {q: "Medición para Sonda Nasogástrica:", a: "Nariz - lóbulo oreja - apófisis xifoides.", o: ["Boca - ombligo", "Nariz - lóbulo oreja - apófisis xifoides.", "Nariz - pecho", "Frente - nariz"], r: "Es la longitud necesaria para llegar al fondo gástrico."},
+    {q: "¿Cómo confirmar que la sonda está en estómago?", a: "Aspirando contenido gástrico o insuflando aire.", o: ["Viendo si el paciente tose", "Aspirando contenido gástrico o insuflando aire.", "Viendo si sale sangre", "Esperando 1 hora"], r: "Evita administrar comida en los pulmones."},
+    {q: "¿Para qué sirve la Sonda Vesical (Foley)?", a: "Drenar orina de la vejiga.", o: ["Drenar sangre", "Drenar orina de la vejiga.", "Alimentar", "Limpiar el recto"], r: "Se usa en cirugías o retención urinaria."},
+    {q: "¿Qué es un Enema?", a: "Introducción de líquido en el recto.", o: ["Lavado de estómago", "Inyección en vena", "Introducción de líquido en el recto.", "Limpieza de oídos"], r: "Para evacuar heces o administrar fármacos."},
+    {q: "Posición ideal para poner un enema:", a: "Posición de Sims.", o: ["Fowler", "Litotomía", "Posición de Sims.", "Boca arriba"], r: "De lado izquierdo facilita el paso al colon sigmoide."},
+    {q: "Complicación de la sonda vesical:", a: "Infección urinaria (ITU).", o: ["Sordera", "Infección urinaria (ITU).", "Estreñimiento", "Hambre"], r: "Es una de las infecciones hospitalarias más comunes."},
+    {q: "¿Qué es la nutrición enteral?", a: "Alimentación por sonda al aparato digestivo.", o: ["Alimentación por vena", "Alimentación por sonda al aparato digestivo.", "Comer por la boca solo", "Dieta de líquidos"], r: "Se usa cuando el paciente no puede tragar."},
+    {q: "¿Qué es la nutrición parenteral?", a: "Alimentación vía endovenosa.", o: ["Uso de sondas", "Alimentación vía endovenosa.", "Comer papillas", "Lactancia materna"], r: "Nutrientes directos a la sangre."},
+    {q: "Cuidado de la sonda: Bolsa colectora.", a: "Debe estar siempre por debajo del nivel de la vejiga.", o: ["Debe estar en el piso", "Debe estar sobre la cama", "Debe estar siempre por debajo del nivel de la vejiga.", "No importa el nivel"], r: "Evita que la orina regrese a la vejiga por gravedad e infecte."},
+
+    // 161-170: Patologías Comunes
+    {q: "¿Qué es la Diabetes Mellitus?", a: "Incapacidad de regular la glucosa en sangre.", o: ["Presión alta", "Incapacidad de regular la glucosa en sangre.", "Falta de hierro", "Infección viral"], r: "Relacionada con la falta o mal uso de la insulina."},
+    {q: "¿Qué es la Hipertensión Arterial?", a: "Elevación persistente de la presión en arterias.", o: ["Baja de azúcar", "Elevación persistente de la presión en arterias.", "Aumento de glóbulos blancos", "Falta de aire"], r: "Factor de riesgo cardiovascular grave."},
+    {q: "¿Qué es un Accidente Cerebrovascular (ACV)?", a: "Interrupción del flujo sanguíneo al cerebro.", o: ["Golpe en la cabeza", "Interrupción del flujo sanguíneo al cerebro.", "Infección nerviosa", "Falta de calcio"], r: "Puede ser isquémico (obstrucción) o hemorrágico."},
+    {q: "¿Qué es la Neumonía?", a: "Infección que inflama los alvéolos pulmonares.", o: ["Gripe común", "Infección que inflama los alvéolos pulmonares.", "Asma", "Cáncer de tráquea"], r: "Suele presentar fiebre, tos y dificultad respiratoria."},
+    {q: "¿Qué es el Infarto de Miocardio?", a: "Muerte de parte del músculo cardíaco por falta de riego.", o: ["Dolor de pecho leve", "Muerte de parte del músculo cardíaco por falta de riego.", "Arritmia pasajera", "Soplo"], r: "Ocurre por obstrucción de arterias coronarias."},
+    {q: "¿Qué es la Insuficiencia Renal?", a: "Pérdida de la capacidad del riñón para filtrar.", o: ["Cálculos renales solo", "Pérdida de la capacidad del riñón para filtrar.", "Infección urinaria", "Mucho deseo de orinar"], r: "Requiere a veces diálisis."},
+    {q: "¿Qué es la Anemia?", a: "Disminución de glóbulos rojos o hemoglobina.", o: ["Exceso de sangre", "Disminución de glóbulos rojos o hemoglobina.", "Azúcar baja", "Presión alta"], r: "Causa cansancio y palidez."},
+    {q: "¿Qué es el Asma?", a: "Inflamación y estrechamiento de vías respiratorias.", o: ["Infección pulmonar", "Inflamación y estrechamiento de vías respiratorias.", "Agua en pulmones", "Tos con sangre"], r: "Provoca sibilancias (silbidos) al respirar."},
+    {q: "¿Qué es la Hepatitis?", a: "Inflamación del hígado.", o: ["Inflamación del estómago", "Inflamación del hígado.", "Cálculos en vesícula", "Cirrosis total"], r: "Puede ser viral (A, B, C) o tóxica."},
+    {q: "¿Qué es la Gastritis?", a: "Inflamación de la mucosa del estómago.", o: ["Dolor de colon", "Inflamación de la mucosa del estómago.", "Diarrea crónica", "Hemorroides"], r: "Causa ardor y dolor epigástrico."},
+
+    // 171-180: Cuidados y Términos
+    {q: "¿Qué son los Cuidados Paliativos?", a: "Atención para mejorar calidad de vida en terminales.", o: ["Tratamiento para curar cáncer", "Atención para mejorar calidad de vida en terminales.", "Cuidados intensivos", "Primeros auxilios"], r: "Se centran en el confort, no en la curación."},
+    {q: "¿Qué es la prevención primaria?", a: "Evitar que la enfermedad aparezca (ej. vacunas).", o: ["Curar la enfermedad", "Evitar que la enfermedad aparezca (ej. vacunas).", "Rehabilitación", "Diagnóstico precoz"], r: "Actúa antes de que ocurra el problema."},
+    {q: "¿Qué es la prevención secundaria?", a: "Diagnóstico temprano para tratamiento oportuno.", o: ["Vacunación", "Diagnóstico temprano para tratamiento oportuno.", "Fisioterapia", "Cirugía final"], r: "Ejemplo: Papanicolaou o mamografía."},
+    {q: "¿Qué es el examen físico?", a: "Valoración cefalocaudal del paciente.", o: ["Análisis de sangre", "Valoración cefalocaudal del paciente.", "Entrevista psicológica", "Solo pesar al paciente"], r: "De la cabeza a los pies mediante inspección, palpación, etc."},
+    {q: "¿Qué es la anamnesis?", a: "Interrogatorio clínico al paciente.", o: ["Examen físico", "Interrogatorio clínico al paciente.", "Receta médica", "Corte de pelo"], r: "Recolección de datos subjetivos e historia."},
+    {q: "¿Qué es la asepsia?", a: "Ausencia de gérmenes patógenos.", o: ["Presencia de bacterias", "Ausencia de gérmenes patógenos.", "Uso de guantes sucios", "Limpieza de oficina"], r: "Estado libre de infección."},
+    {q: "¿Qué es un antiséptico?", a: "Sustancia que inhibe gérmenes en tejidos vivos.", o: ["Cloro para el piso", "Sustancia que inhibe gérmenes en tejidos vivos.", "Jabón de ropa", "Antibiótico oral"], r: "Ejemplos: Alcohol, Povidona yodada."},
+    {q: "¿Qué es un desinfectante?", a: "Sustancia para eliminar gérmenes en objetos inertes.", o: ["Jabón corporal", "Sustancia para eliminar gérmenes en objetos inertes.", "Suero fisiológico", "Crema dérmica"], r: "Ejemplo: Cloro en superficies."},
+    {q: "¿Qué es la mecánica corporal?", a: "Uso eficiente del cuerpo para mover objetos/pacientes.", o: ["Hacer ejercicio", "Uso eficiente del cuerpo para mover objetos/pacientes.", "Dormir recto", "Correr rápido"], r: "Previene lesiones en el personal de salud."},
+    {q: "¿Qué es el amortajamiento?", a: "Preparación del cadáver para su destino final.", o: ["Vestir al paciente", "Preparación del cadáver para su destino final.", "Bañar al recién nacido", "Poner una venda"], r: "Cuidados post-mortem respetuosos."},
+
+    // 181-190: Más Vacunas y Edades
+    {q: "¿A qué edad se pone la vacuna de la Polio (3era dosis)?", a: "6 meses.", o: ["2 meses", "4 meses", "6 meses.", "12 meses"], r: "Esquema regular: 2, 4 y 6 meses."},
+    {q: "¿Qué vacuna previene la difteria, tétanos y tosferina?", a: "Pentavalente o DPT.", o: ["BCG", "Pentavalente o DPT.", "SRP", "HB"], r: "La 'P' de DPT es por Pertussis (Tosferina)."},
+    {q: "La vacuna contra Hepatitis B en adultos se pone en:", a: "3 dosis.", o: ["1 dosis", "3 dosis.", "5 dosis", "No se pone"], r: "Esquema 0, 1 y 6 meses generalmente."},
+    {q: "¿Qué vacuna es obligatoria para viajeros a zonas selváticas?", a: "Fiebre Amarilla.", o: ["BCG", "Fiebre Amarilla.", "SRP", "Rotavirus"], r: "Se debe aplicar al menos 10 días antes del viaje."},
+    {q: "¿Cuál es la vía de la vacuna contra la Influenza?", a: "Intramuscular.", o: ["Oral", "Subcutánea", "Intramuscular.", "Intradérmica"], r: "Deltoides en adultos, vasto lateral en bebés."},
+    {q: "¿Qué vacuna se administra a las embarazadas?", a: "dT (Difteria y Tétanos).", o: ["SRP", "dT (Difteria y Tétanos).", "BCG", "Fiebre Amarilla"], r: "Previene el tétanos neonatal."},
+    {q: "Vía de la vacuna contra Neumococo en adultos mayores:", a: "Intramuscular.", o: ["Subcutánea", "Intramuscular.", "Oral", "Intradérmica"], r: "Para prevenir neumonías graves."},
+    {q: "¿Cuántas dosis de Rotavirus se aplican?", a: "2 dosis (2 y 4 meses).", o: ["3 dosis", "2 dosis (2 y 4 meses).", "1 dosis", "4 dosis"], r: "Según esquema nacional estándar."},
+    {q: "¿Qué previene la vacuna Hib?", a: "Meningitis y neumonía por Haemophilus.", o: ["Gripe viral", "Meningitis y neumonía por Haemophilus.", "Hepatitis", "Diarrea"], r: "Está incluida en la Pentavalente."},
+    {q: "¿A qué edad se aplica el refuerzo de SRP?", a: "A los 18 meses o 5 años (según país).", o: ["Nunca", "A los 18 meses o 5 años (según país).", "A los 10 años", "A los 3 meses"], r: "Asegura la inmunidad a largo plazo."},
+
+    // 191-200: Último Repaso Misceláneo
+    {q: "Órgano que produce insulina:", a: "Páncreas.", o: ["Hígado", "Páncreas.", "Vesícula", "Estómago"], r: "Específicamente en los islotes de Langerhans."},
+    {q: "Vena más grande del cuerpo:", a: "Vena Cava.", o: ["Vena Pulmonar", "Vena Cava.", "Vena Renal", "Vena Yugular"], r: "Recoge sangre de todo el organismo."},
+    {q: "Arteria más grande del cuerpo:", a: "Arteria Aorta.", o: ["Arteria Pulmonar", "Arteria Aorta.", "Arteria Femoral", "Arteria Carótida"], r: "Nace en el ventrículo izquierdo."},
+    {q: "Hueso más largo del cuerpo:", a: "Fémur.", o: ["Tibia", "Húmero", "Fémur.", "Radio"], r: "Hueso del muslo."},
+    {q: "¿Qué es la hematuria?", a: "Presencia de sangre en la orina.", o: ["Azúcar en orina", "Presencia de sangre en la orina.", "Pus en orina", "Falta de orina"], r: "Signo de infección, cálculos o trauma."},
+    {q: "¿Qué es la disuria?", a: "Dolor o dificultad al orinar.", o: ["Orinar mucho", "Dolor o dificultad al orinar.", "Orina oscura", "No poder orinar"], r: "Común en infecciones urinarias."},
+    {q: "¿Qué es la cianosis?", a: "Coloración azulada de la piel (falta oxígeno).", o: ["Piel roja", "Coloración azulada de la piel (falta oxígeno).", "Piel amarilla", "Piel pálida"], r: "Se nota en labios y uñas."},
+    {q: "¿Qué es el edema?", a: "Hinchazón por acumulación de líquidos.", o: ["Deshidratación", "Hinchazón por acumulación de líquidos.", "Sangrado interno", "Moretón"], r: "Frecuente en insuficiencia cardíaca o renal."},
+    {q: "Principal causa de infección intrahospitalaria:", a: "Falta de lavado de manos.", o: ["Aire acondicionado", "Falta de lavado de manos.", "Comida del hospital", "Visitas"], r: "El lavado de manos es la medida preventiva #1."},
+    {q: "¿Qué es la salud según la OMS?", a: "Bienestar físico, mental y social completo.", o: ["Ausencia de enfermedad solo", "Bienestar físico, mental y social completo.", "Estar fuerte", "Tener dinero"], r: "No es solo no estar enfermo, es estar bien en todo sentido."}
+];
+
+let quizData = [];
+let currentIdx = 0;
+let score = 0;
+let answered = false;
+
+function init() {
+    quizData = [...masterDB].sort(() => Math.random() - 0.5);
+    showQuestion();
+}
+
+function showQuestion() {
+    if (currentIdx >= 200) { finish(); return; }
+    
+    answered = false;
+    const q = quizData[currentIdx];
+    document.getElementById('q-idx').innerText = currentIdx + 1;
+    document.getElementById('q-text').innerText = q.q;
+    document.getElementById('q-feedback').style.display = 'none';
+    document.getElementById('next-btn').style.display = 'none';
+    
+    const optsDiv = document.getElementById('q-options');
+    optsDiv.innerHTML = '';
+    
+    let shuffledOpts = [...q.o].sort(() => Math.random() - 0.5);
+    shuffledOpts.forEach(text => {
+        const btn = document.createElement('button');
+        btn.className = 'opt-btn';
+        btn.innerText = text;
+        btn.onclick = () => check(btn, text, q.a, q.r);
+        optsDiv.appendChild(btn);
+    });
+    
+    document.getElementById('progress-fill').style.width = (currentIdx / 200 * 100) + "%";
+}
+
+function check(btn, selected, correct, feedback) {
+    if (answered) return;
+    answered = true;
+    
+    const allBtns = document.querySelectorAll('.opt-btn');
+    if (selected === correct) {
+        btn.classList.add('correct');
+        score++;
+        document.getElementById('q-score').innerText = score;
+    } else {
+        btn.classList.add('wrong');
+        allBtns.forEach(b => { if(b.innerText === correct) b.classList.add('correct'); });
+    }
+    
+    const fDiv = document.getElementById('q-feedback');
+    fDiv.innerHTML = "<strong>Explicación:</strong> " + feedback;
+    fDiv.style.display = 'block';
+    document.getElementById('next-btn').style.display = 'block';
+}
+
+function handleNext() {
+    currentIdx++;
+    showQuestion();
+}
+
+function finish() {
+    const finalPct = Math.round((score / 200) * 100);
+    document.getElementById('quiz-content').innerHTML = `
+        <div style="text-align:center; padding:30px;">
+            <h2 style="font-size:2.5rem;">¡REPASO FINALIZADO!</h2>
+            <p style="font-size:1.2rem;">Has revisado las 200 preguntas de tu temario.</p>
+            <div style="font-size:5rem; color:var(--blue); margin:20px 0;">${finalPct}%</div>
+            <p style="font-size:1.2rem;">Aciertos: ${score} de 200</p>
+            <button onclick="location.reload()" style="padding:20px; background:var(--success); color:white; border:none; border-radius:10px; cursor:pointer; font-size:1.1rem; width:100%;">Volver a Empezar (Barajar)</button>
+        </div>
+    `;
+}
+
+window.onload = init;
+</script>
+</body>
+</html>
